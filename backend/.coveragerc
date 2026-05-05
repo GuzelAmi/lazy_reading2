@@ -1,0 +1,15 @@
+[run]
+source = app
+omit = 
+    app/main.py
+    app/database.py
+    app/schemas.py
+    app/ollama_dictionary.py
+    app/services/google_books_service.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
