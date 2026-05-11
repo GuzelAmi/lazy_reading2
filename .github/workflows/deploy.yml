@@ -33,11 +33,15 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
+      - name: Lint with flake8
+        run: |
+          cd backend
+          pip install flake8
+          flake8 app/ --count --max-complexity=10 --max-line-length=127 --statistics
       - name: Run backend tests
         run: |
           cd backend
           pytest tests/ --cov=app --cov-fail-under=60
-
   test-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -50,6 +54,10 @@ jobs:
         run: |
           cd frontend
           npm install
+      - name: Lint with ESLint
+        run: |
+          cd frontend
+          npx eslint src/ --max-warnings=0
       - name: Run frontend tests
         run: |
           cd frontend

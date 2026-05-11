@@ -1,0 +1,4 @@
+[flake8]
+ignore = E501, E302, E305, W291, W293, F401, E722, F841, E303, E301, W292
+max-line-length = 127
+exclude = venv,__pycache__
