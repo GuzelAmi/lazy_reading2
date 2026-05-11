@@ -1,3 +1,13 @@
+version: '3.8'
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+
 services:
   db:
     image: postgres:15
@@ -19,7 +29,7 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio
-    command: server /data --console-address ":9001"   # Без указания учетных данных в команде
+    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -65,7 +75,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      minio-setup:   # ждём создания бакета
+      minio-setup:
         condition: service_completed_successfully
     volumes:
       - ./backend:/app
@@ -86,10 +96,3 @@ services:
       - "80:80"
     networks:
       - app_network
-
-networks:
-  app_network:
-
-volumes:
-  postgres_data:
-  minio_data:

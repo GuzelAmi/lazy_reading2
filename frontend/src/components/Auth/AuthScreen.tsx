@@ -43,6 +43,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               onChange={(e) => setUsername(e.target.value)}
               className="w-full p-2 border rounded mb-4"
               required
+              data-testid="username-input"
             />
             <input
               type="password"
@@ -51,8 +52,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2 border rounded mb-4"
               required
+              data-testid="password-input"
             />
-            <button type="submit" className="w-full bg-blue-800 text-white p-2 rounded hover:bg-blue-700">
+            <button
+              type="submit"
+              className="w-full bg-blue-800 text-white p-2 rounded hover:bg-blue-700"
+              data-testid="submit-button"
+            >
               {isRegistering ? 'Зарегистрироваться' : 'Войти'}
             </button>
           </form>

@@ -1,19 +1,38 @@
-// src/App.tsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthScreen } from './components/Auth/AuthScreen';
 import { Header } from './components/Layout/Header';
 import { LeftSidebar } from './components/Layout/LeftSidebar';
 import { RightSidebar } from './components/Layout/RightSidebar';
 import { SessionView } from './components/Views/SessionView';
 import { BookList } from './components/Books/BookList';
+import { PublicHome } from './components/PublicHome';
+import AdminPanel from './components/Lab1AdminPanel';
 import type { ViewState, Session, DictionaryResponse } from './types';
 import { authService } from './services/auth';
 import { booksService } from './services/books';
 import { sessionsService } from './services/sessions';
 import { dictionaryService } from './services/dictionary';
-import AdminPanel from './components/Lab1AdminPanel';
+
+const RequireAuth = ({ children }: { children: JSX.Element }) => {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
+const RequireAdmin = ({ children }: { children: JSX.Element }) => {
+  const role = localStorage.getItem('role');
+  if (role !== 'admin') {
+    return <Navigate to="/books" replace />;
+  }
+  return children;
+};
 
 const App = () => {
+  const navigate = useNavigate();
+
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +49,6 @@ const App = () => {
   const [selectedWordDef, setSelectedWordDef] = useState<DictionaryResponse | null>(null);
   const [loadingDef, setLoadingDef] = useState(false);
 
-  // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadAuthor, setUploadAuthor] = useState('');
@@ -71,6 +89,8 @@ const App = () => {
       localStorage.setItem('role', res.role);
       setLoggedIn(true);
       await loadSessions();
+      // ✅ Добавьте эту строку
+      window.location.href = '/books';
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Ошибка авторизации');
     } finally {
@@ -97,6 +117,7 @@ const App = () => {
     setActiveSession(null);
     setSelectedWordDef(null);
     setShowAdmin(false);
+    navigate('/');
   };
 
   const handleSelectSession = (s: Session) => {
@@ -146,10 +167,8 @@ const App = () => {
     }
   };
 
-  // Upload modal handlers
   const onUploadClick = () => {
     setShowUploadModal(true);
-    // Reset form when opening
     setUploadTitle('');
     setUploadAuthor('');
     setSelectedFile(null);
@@ -162,7 +181,6 @@ const App = () => {
       return;
     }
     setSelectedFile(file || null);
-    // Do NOT auto-fill title/author from file name
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -198,145 +216,160 @@ const App = () => {
     }
   };
 
-  if (!loggedIn) {
-    return (
-      <AuthScreen
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        isRegistering={isRegistering}
-        setIsRegistering={setIsRegistering}
-        onSubmit={handleLogin}
-      />
-    );
-  }
-
-  if (showAdmin) {
-    return (
-      <div className="h-screen flex flex-col bg-gray-50">
-        <Header
-          username={username}
-          isSidebarOpen={isLeftOpen}
-          toggleSidebar={() => setIsLeftOpen(!isLeftOpen)}
-          onLogout={handleLogout}
-          onHomeClick={() => setShowAdmin(false)}
-          showAdmin={true}
-          onAdminClose={() => setShowAdmin(false)}
-        />
-        <AdminPanel onClose={() => setShowAdmin(false)} />
-      </div>
-    );
-  }
-
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <Header
-        username={username}
-        isSidebarOpen={isLeftOpen}
-        toggleSidebar={() => setIsLeftOpen(!isLeftOpen)}
-        onLogout={handleLogout}
-        onHomeClick={() => {
-          setView('HOME');
-          setActiveSession(null);
-          setIsRightOpen(false);
-          setSelectedWordDef(null);
-        }}
-        onAdminOpen={() => setShowAdmin(true)}
+    <Routes>
+      <Route path="/" element={<PublicHome />} />
+      <Route
+        path="/auth"
+        element={
+          <AuthScreen
+            username={username}
+            setUsername={setUsername}
+            password={password}
+            setPassword={setPassword}
+            isRegistering={isRegistering}
+            setIsRegistering={setIsRegistering}
+            onSubmit={handleLogin}
+          />
+        }
       />
-      <div className="flex flex-1 overflow-hidden">
-        <LeftSidebar
-          isOpen={isLeftOpen}
-          sessions={sessions}
-          activeSessionId={activeSession?.id ?? null}
-          onSelectSession={handleSelectSession}
-          onUploadClick={onUploadClick}
-          onDeleteSession={handleDeleteSession}
-        />
-        <main className="flex-1 relative bg-white overflow-hidden">
-          {view === 'HOME' && <BookList />}
-          {view === 'SESSION' && activeSession && (
-            <SessionView
-              key={activeSession.id}
-              session={activeSession}
-              onWordSelect={handleWordSelect}
-              selectedWordDef={selectedWordDef}
-              onProgressUpdate={updateSessionProgress}
-            />
-          )}
-        </main>
-        <RightSidebar isOpen={isRightOpen} wordDef={selectedWordDef} loading={loadingDef} />
-      </div>
 
-      {/* Modal for book upload */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">Загрузка новой книги</h2>
-            <form onSubmit={handleUploadSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Название книги *</label>
-                <input
-                  type="text"
-                  value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)}
-                  className="w-full p-2 border rounded"
-                  required
-                  data-testid="upload-title"    
+      <Route
+        path="/books"
+        element={
+          <RequireAuth>
+            <div className="h-screen flex flex-col bg-gray-50">
+              <Header
+                username={username}
+                isSidebarOpen={isLeftOpen}
+                toggleSidebar={() => setIsLeftOpen(!isLeftOpen)}
+                onLogout={handleLogout}
+                onHomeClick={() => {
+                  setView('HOME');
+                  setActiveSession(null);
+                  setIsRightOpen(false);
+                  setSelectedWordDef(null);
+                }}
+                onAdminOpen={() => setShowAdmin(true)}
+              />
+              <div className="flex flex-1 overflow-hidden">
+                <LeftSidebar
+                  isOpen={isLeftOpen}
+                  sessions={sessions}
+                  activeSessionId={activeSession?.id ?? null}
+                  onSelectSession={handleSelectSession}
+                  onUploadClick={onUploadClick}
+                  onDeleteSession={handleDeleteSession}
                 />
+                <main className="flex-1 relative bg-white overflow-hidden">
+                  {view === 'HOME' && <BookList />}
+                  {view === 'SESSION' && activeSession && (
+                    <SessionView
+                      key={activeSession.id}
+                      session={activeSession}
+                      onWordSelect={handleWordSelect}
+                      selectedWordDef={selectedWordDef}
+                      onProgressUpdate={updateSessionProgress}
+                    />
+                  )}
+                </main>
+                <RightSidebar isOpen={isRightOpen} wordDef={selectedWordDef} loading={loadingDef} />
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Автор (необязательно)</label>
-                <input
-                  type="text"
-                  value={uploadAuthor}
-                  onChange={(e) => setUploadAuthor(e.target.value)}
-                  className="w-full p-2 border rounded"
-                  data-testid="upload-author" 
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Файл (TXT) *</label>
-                <input
-                  type="file"
-                  accept=".txt"
-                  onChange={handleFileSelectForUpload}
-                  className="w-full"
-                  required
-                />
-              </div>
-              {selectedFile && (
-                <div className="text-sm text-gray-600 mb-4">
-                  Выбран файл: {selectedFile.name}
+
+              {showUploadModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg p-6 w-96">
+                    <h2 className="text-xl font-bold mb-4">Загрузка новой книги</h2>
+                    <form onSubmit={handleUploadSubmit}>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Название книги *</label>
+                        <input
+                          type="text"
+                          value={uploadTitle}
+                          onChange={(e) => setUploadTitle(e.target.value)}
+                          className="w-full p-2 border rounded"
+                          required
+                          data-testid="upload-title"
+                        />
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Автор (необязательно)</label>
+                        <input
+                          type="text"
+                          value={uploadAuthor}
+                          onChange={(e) => setUploadAuthor(e.target.value)}
+                          className="w-full p-2 border rounded"
+                          data-testid="upload-author"
+                        />
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Файл (TXT) *</label>
+                        <input
+                          type="file"
+                          accept=".txt"
+                          onChange={handleFileSelectForUpload}
+                          className="w-full"
+                          required
+                        />
+                      </div>
+                      {selectedFile && (
+                        <div className="text-sm text-gray-600 mb-4">
+                          Выбран файл: {selectedFile.name}
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowUploadModal(false);
+                            setSelectedFile(null);
+                            setUploadTitle('');
+                            setUploadAuthor('');
+                          }}
+                          className="px-4 py-2 border rounded"
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={uploading || !uploadTitle.trim() || !selectedFile}
+                          className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                          data-testid="upload-submit"
+                        >
+                          {uploading ? 'Загрузка...' : 'Загрузить'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowUploadModal(false);
-                    setSelectedFile(null);
-                    setUploadTitle('');
-                    setUploadAuthor('');
-                  }}
-                  className="px-4 py-2 border rounded"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading || !uploadTitle.trim() || !selectedFile}
-                  className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                  data-testid="upload-submit" 
-                >
-                  {uploading ? 'Загрузка...' : 'Загрузить'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+            </div>
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAdmin>
+            <div className="h-screen flex flex-col bg-gray-50">
+              <Header
+                username={username}
+                isSidebarOpen={isLeftOpen}
+                toggleSidebar={() => setIsLeftOpen(!isLeftOpen)}
+                onLogout={handleLogout}
+                onHomeClick={() => setShowAdmin(false)}
+                showAdmin={true}
+                onAdminClose={() => setShowAdmin(false)}
+              />
+              <AdminPanel onClose={() => setShowAdmin(false)} />
+            </div>
+          </RequireAdmin>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 

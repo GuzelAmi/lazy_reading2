@@ -23,7 +23,7 @@ openai_service = OpenAIService()
 # CORS (для разработки)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],  # порт вашего Vite
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -169,20 +169,20 @@ def upload_book(
     db: Session = Depends(get_db),
     s3: S3Service = Depends(lambda: S3Service())
 ):
-    # 1. Валидация файла
+    
     if not book_file.filename.endswith('.txt'):
         raise HTTPException(400, "Only TXT files allowed")
     content = book_file.file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 10 MB)")
 
-    # 2. Загрузка в MinIO
+    
     file_key = s3.upload_file(content, book_file.filename)
 
-    # 3. Сохранение книги в БД (без обложки)
+    
     book = crud.create_book(db, title, author, content, file_key, current_user.id)
 
-    # 4. Синхронное получение обложки из Google Books
+    
     try:
         from app.services.google_books_service import GoogleBooksService
         service = GoogleBooksService()
@@ -465,7 +465,7 @@ def delete_user(
 
 @app.get("/sitemap.xml", response_class=PlainTextResponse)
 async def sitemap():
-    base_url = "https://lazyreading.ru" 
+    base_url = "https://lazyreading.ru"
     urls = [
         f"<url><loc>{base_url}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>",
     ]
@@ -479,10 +479,9 @@ async def sitemap():
 async def robots():
     return """User-agent: *
 Allow: /$
-Disallow: /books$
 Disallow: /auth/
 Disallow: /admin/
 Disallow: /sessions/
-Disallow: /api/dictionary/
+Disallow: /books
 Sitemap: https://lazyreading.ru/sitemap.xml
 """
